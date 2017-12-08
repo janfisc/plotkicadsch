@@ -4,5 +4,8 @@
  ((name        kicadsch)
   (public_name kicadsch)
   (synopsis "Library to plotting KiCAD schematics")
+  (libraries (
+    core_kernel
+    ))
   (flags (:standard -safe-string))
   ))

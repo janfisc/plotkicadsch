@@ -1,5 +1,6 @@
 module Sigs=KicadSch_sigs
 open Sigs
+open Core_kernel
 module MakeSchPainter (P: Painter): (SchPainter with type painterContext := P.t) =
 struct
   module CPainter = Kicadlib.MakePainter(P)
@@ -99,8 +100,8 @@ open Schparse
             o = orientation_of_string orient and
             s = Size size and
             j = justify_of_string hjust and
-            stl = style_of_string (String.sub vjustbi 1 1, String.sub vjustbi 2 1) and
-            visible = (String.get flags 3 == '0') && not (String.equal "~" name) in
+            stl = style_of_string (String.sub vjustbi ~pos:1 ~len:1, String.sub vjustbi ~pos:2 ~len:1) and
+            visible = (String.get flags 3 = '0') && not (String.equal "~" name) in
         Some (visible, name, o, co, s, j, stl)
     )
 
@@ -130,7 +131,7 @@ open Schparse
         Some (n, mm, timestamp))
 
   let parse_transfo =
-    let check x = (x==1) || (x==0) || (x==(-1)) in
+    let check x = (x=1) || (x=0) || (x=(-1)) in
     create_parse_fun
       ~name: "Component transformation"
       ~regexp_str: " %d %d %d %d"
@@ -239,7 +240,7 @@ open Schparse
                 let transfo = ((a, b), (c, d)) in
                 let canevas' = CPainter.plot_comp lib sym unit origin transfo canevas in
                 let draw = draw_field origin transfo in
-                comp, List.fold_left draw canevas' fields
+                comp, List.fold_left ~init:canevas' ~f:draw fields
              | _ ->
                 (Printf.printf "cannot plot component with missing definitions !";
                  comp, canevas)
@@ -354,8 +355,8 @@ open Schparse
       ~name: "Description line"
       ~regexp_str: "%s %s"
       ~extract_fun: (fun field value ->
-          if String.get value 0 == '"' then
-            let new_val= String.sub value 1 (String.length value - 2) in
+          if String.get value 0 = '"' then
+            let new_val= String.sub value ~pos:1 ~len:(String.length value - 2) in
             Some (field, new_val)
           else
             Some (field, value)
@@ -383,13 +384,13 @@ open Schparse
     let rec  split lstart lend (acc: string list) =
       if lend < (len - 1) then
         begin
-          if (String.get line lend == '\\') && (String.get line (lend+1) == 'n') then
-            split (lend+2) (lend+2) ((String.sub line lstart (lend - lstart))::acc)
+          if (String.get line lend = '\\') && (String.get line (lend+1) = 'n') then
+            split (lend+2) (lend+2) ((String.sub line ~pos:lstart ~len:(lend - lstart))::acc)
           else
             split lstart (lend+1) acc
         end
       else
-        (String.sub line lstart (len-lstart))::acc
+        (String.sub line ~pos:lstart  ~len:(len-lstart))::acc
     in
     split 0 0 []
 
@@ -401,10 +402,10 @@ open Schparse
         | WireLabel -> Red in
       let Size s = l.size in
       let Coord (x,y) = l.c in
-      let paint_line c' (line_index,l') =
+      let paint_line line_index c' l' =
         P.paint_text ~kolor:pcolor l' (orientation_of_justify l.orient) (Coord(x, (y-line_index*s))) l.size l.orient NoStyle c' in
       let lines = split_lines line in
-      List.fold_left paint_line c (List.mapi (fun i l -> (i,l)) lines)
+      List.foldi ~f:paint_line ~init:c lines
     end
     | PortLabel (prange, ptype) ->
        let pcolor = match prange with
@@ -549,8 +550,8 @@ open Schparse
     | None -> failwith "not adding data to None image"
     | Some buf ->
       parse_list " %x " line |>
-       List.rev_map char_of_int |>
-       List.iter (Buffer.add_char buf)
+       List.rev_map ~f:char_of_int |>
+       List.iter ~f:(Buffer.add_char buf)
 
   let parse_bitmap_line line b =
     if starts_with line "Pos" then
