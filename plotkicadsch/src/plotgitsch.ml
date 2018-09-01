@@ -1,6 +1,7 @@
 open Core_kernel
 open Lwt.Infix
 
+module SvgPainter = SvgPainter.Make(struct let colors=None end)
 module S = Kicadsch.MakeSchPainter(SvgPainter)
 open Kicadsch.Sigs
 
@@ -280,7 +281,7 @@ module ImageDiff = struct
     let both_files =
       List.map ~f:(
         fun (svg_name, context) -> Lwt_io.with_file ~mode:Lwt_io.Output svg_name (fun o ->
-            Lwt_io.write o (SvgPainter.write context)))
+                                    Lwt_io.write o (SvgPainter.write context)))
         [(from_filename, from_ctx); (to_filename, to_ctx)] in
     let both = Lwt.join both_files in
     let compare_them =

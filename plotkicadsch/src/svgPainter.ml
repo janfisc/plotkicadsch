@@ -1,9 +1,25 @@
-open Tyxml.Svg
 open Kicadsch.Sigs
 
-type content = [ `Polyline | `Text | `Svg | `Rect | `Circle |`Path | `Image ]
-type dim = int*int
-type t =  { d: dim  ; c : content elt list} [@@inline]
+type diff_colors = {old_ver: string; new_ver: string; fg: string; bg: string}
+module type Colors = sig
+  val colors:diff_colors option
+end
+module type SvgP = sig
+  include Painter
+  val write: ?op:bool -> t -> string
+end
+
+module Make (C: Colors): SvgP =
+  struct
+    open Tyxml.Svg
+    let colors =
+      let default_colors = {old_ver="#FF0000"; new_ver="#00FF00"; fg="#000000"; bg="#FFFFFF"} in
+      match C.colors with
+      | Some c -> c
+      | None -> default_colors
+    type content = [ `Polyline | `Text | `Svg | `Rect | `Circle |`Path | `Image ]
+    type dim = int*int
+    type t =  { d: dim  ; c : content elt list} [@@inline]
 
 let style_attr_of_style = function
   | Italic -> [a_font_style "italic"]
@@ -22,9 +38,9 @@ let anchor_attr_of_justify justif =
 let color_of_kolor k =
   let cstring = match k with
   | NoColor -> "none"
-  | Black -> "#000000"
-  | Red -> "#FF0000"
-  | Green -> "#00FF00"
+  | Black -> colors.fg
+  | Red ->  colors.old_ver
+  | Green -> colors.new_ver
   | Blue -> "#0000CD"
   | Brown -> "#800000"
   in `Color (cstring, None)
@@ -104,3 +120,4 @@ let write ?(op=true) {d= (x,y); c}  =
   let opacity = a_style @@ Printf.sprintf "stroke-opacity:%f;fill-opacity:%f;" o o  in
   let svg_doc = svg  ~a:[a_width (fx *. 0.00254, Some `Cm); a_height (fy *. 0.00254, Some `Cm); a_viewBox (0.,0., float x, float y); a_font_family "Verdana, sans-serif";opacity] @@ (rect ~a:[a_fill (`Color ("#FFFFFF", None)); a_width (coord_of_int x); a_height (coord_of_int y)] [])::c in
   Format.asprintf "%a" (Tyxml.Svg.pp ()) svg_doc
+  end

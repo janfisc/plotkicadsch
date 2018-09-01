@@ -1,4 +1,5 @@
 open Kicadsch
+module SvgPainter = SvgPainter.Make(struct let colors=None end)
 module SvgSchPainter = MakeSchPainter(SvgPainter)
 open SvgSchPainter
 
